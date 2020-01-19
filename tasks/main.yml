@@ -1,0 +1,166 @@
+---
+# tasks file for strongswan_server
+
+- name: Install freeradius and stongswan requirements
+  package:
+    name: 
+      - freeradius
+      - libgmp-dev
+      - gcc
+      - git
+      - dh-autoreconf
+      - automake
+      - autoconf
+      - libtool
+      - pkg-config
+      - gettext
+      - perl
+      - python
+      # - lex
+      - flex
+      # - yacc
+      - bison
+      - gperf
+    state: present
+  become: true
+
+- name: Remove strongswan installed package
+  package:
+    name: 
+      - strongswan
+    state: absent
+  become: true
+
+- name: Clone strongswan git repository
+  git: 
+    repo: "https://git.strongswan.org/strongswan.git"
+    dest: "{{ strongswan_server_git_directory }}"
+    clone: true
+    update: true
+  become: true
+
+- name: Set script path facts 
+  set_fact: 
+    strongswan_server_update_script_path: "{{ (strongswan_server_git_directory + '/update.sh') | realpath }}"
+
+- name: Create update script
+  copy: 
+    dest: "{{ strongswan_server_update_script_path }}"
+    content: |
+      #!/bin/bash
+      set -euxo pipefail
+       
+      # https://wiki.strongswan.org/projects/strongswan/repository/entry/HACKING
+      pushd {{ strongswan_server_git_directory | quote }}
+      git pull
+
+      make clean
+      ./autogen.sh
+      # https://wiki.strongswan.org/projects/strongswan/wiki/XAuthEAP
+      ./configure \
+        --enable-xauth-eap \
+        --enable-eap-radius \
+        --enable-eap-mschapv2 \
+        --enable-eap-tls \
+        --enable-eap-md5
+      make
+      make install
+      popd
+    owner: root
+    group: root
+    mode: '0755'
+  become: true
+
+- name: Compile and install strongswan 
+  command: './update.sh'
+  args:
+    chdir: "{{ strongswan_server_git_directory }}"
+  become: true
+  tags: 
+    - build
+
+- name: Create autoupdate cron Job
+  cron:
+    name: "strongswan autoupdate"
+    weekday: "2"
+    minute: "0"
+    hour: "12"
+    user: root
+    job: "bash {{ strongswan_server_update_script_path | quote }}"
+  become: true
+
+- name: Deploy strongswan ipsec.conf 
+  template: 
+    src: 'etc/ipsec.conf.j2'
+    dest: '/usr/local/etc/ipsec.conf'
+    owner: 'root'
+    group: 'root'
+  become: true
+
+- name: Deploy strongswan charon xauth-eap
+  template: 
+    src: 'etc/strongswan.d/charon/xauth-eap.conf.j2'
+    dest: '/usr/local/etc/strongswan.d/charon/xauth-eap.conf'
+    owner: 'root'
+    group: 'root'
+    mode: '0400'
+  become: true
+
+- name: Deploy strongswan charon eap-radius
+  template: 
+    src: 'etc/strongswan.d/charon/eap-radius.conf.j2'
+    dest: '/usr/local/etc/strongswan.d/charon/eap-radius.conf'
+    owner: 'root'
+    group: 'root'
+    mode: '0400'
+  become: true
+
+- name: Deploy strongswan CA
+  copy: 
+    src: 'ca.crt'
+    dest: '/usr/local/etc/ipsec.d/cacerts/ca.crt'
+    owner: 'root'
+    group: 'root'
+    mode: '0444'
+  become: true
+
+- name: Deploy strongswan cert
+  copy: 
+    src: 'strongswan.crt'
+    dest: '/usr/local/etc/ipsec.d/certs/strongswan.crt'
+    owner: 'root'
+    group: 'root'
+    mode: '0444'
+  become: true
+
+- name: Deploy strongswan key
+  copy: 
+    src: 'strongswan.key'
+    dest: '/usr/local/etc/ipsec.d/private/strongswan.key'
+    owner: 'root'
+    group: 'root'
+    mode: '0400'
+  become: true
+
+- name: Configure ipsec.secrets
+  lineinfile:
+    path: /usr/local/etc/ipsec.secrets
+    line: ': RSA strongswan.key'
+    state: present
+    create: true
+  become: true
+  
+- name: Start / Enable freeradius service
+  service: 
+    name: freeradius
+    state: restarted
+    enabled: true
+  become: true
+
+- name: Start / Enable strongswan service
+  service: 
+    name: strongswan-starter
+    state: restarted
+    enabled: true
+  become: true
+

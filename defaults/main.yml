@@ -1,0 +1,4 @@
+---
+# defaults file for strongswan_server
+strongswan_server_git_directory: '/root/strongswan' 
+

@@ -1,0 +1,42 @@
+# /etc/ipsec.conf - strongSwan IPsec configuration file
+
+config setup
+       cachecrls=yes
+       # FIXME
+       strictcrlpolicy=no
+       #charondebug=all
+
+ca strongswan  #define alternative CRL distribution point
+       cacert=ca.crt
+       #crluri=http://crl2.strongswan.org/strongswan.crl
+       auto=add
+
+conn %default
+       keyingtries=1
+       keyexchange=ikev2
+
+conn roadwarrior
+       keyexchange=ikev1
+       ike=aes256-sha256-modp1024
+       # Server Side
+       left=%defaultroute
+       leftsubnet=0.0.0.0/0
+       leftcert=strongswan.crt
+       leftauth=pubkey
+       leftsendcert=always
+       leftid={{ strongswan_server_dns }}
+       leftfirewall=yes
+       # Client side 
+       # nat connection
+       rightsubnet=0.0.0.0/0
+       # rsa
+       rightauth=pubkey
+       # Client <--- IKEv1/Xauth ---> Server <--- RADIUS/EAP ---> AAA
+       rightauth2=xauth-eap
+       rightsendcert=never
+       rightdns=192.168.0.11
+       # allow vpn private tunnel 
+       eap_identity=%any
+       type=tunnel
+       auto=add
+

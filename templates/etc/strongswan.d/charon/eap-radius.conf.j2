@@ -1,0 +1,15 @@
+eap-radius {
+    load = yes
+    # nas_identifier = {{ strongswan_server_radius_nas_identifier | default('') }}
+    retransmit_timeout = 30
+    retransmit_tries = 1
+    servers {
+        primary {
+            preference = 99
+            address = {{ strongswan_server_radius_address | default('localhost') }}
+            secret = {{ strongswan_server_radius_secret | default('testing123') }}
+            auth_port = {{ strongswan_server_radius_auth_port | default(1812) }}
+            acct_port = {{ strongswan_server_radius_acct_port | default(1813) }}
+        }
+    }
+}
