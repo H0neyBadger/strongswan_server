@@ -1,10 +1,9 @@
 ---
 # tasks file for strongswan_server
 
-- name: Install freeradius and stongswan requirements
+- name: Install stongswan requirements
   package:
     name: 
-      - freeradius
       - libgmp-dev
       - gcc
       - git
@@ -66,6 +65,9 @@
       make
       make install
       popd
+
+      systemctl daemon-reload
+      systemctl restart strongswan-starter
     owner: root
     group: root
     mode: '0755'
@@ -149,7 +151,17 @@
     state: present
     create: true
   become: true
-  
+
+# Set ip forwarding on in /proc and in the sysctl file and reload if necessary
+- name: allow net.ipv4.ip_forward
+  sysctl:
+    name: net.ipv4.ip_forward
+    value: '1'
+    sysctl_set: yes
+    state: present
+    reload: yes
+  become: true
+ 
 - name: Start / Enable freeradius service
   service: 
     name: freeradius

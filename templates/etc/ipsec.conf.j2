@@ -16,6 +16,7 @@ conn %default
        keyexchange=ikev2
 
 conn roadwarrior
+       # android Ipsec Xauth RSA
        keyexchange=ikev1
        ike=aes256-sha256-modp1024
        # Server Side
@@ -24,17 +25,17 @@ conn roadwarrior
        leftcert=strongswan.crt
        leftauth=pubkey
        leftsendcert=always
-       leftid={{ strongswan_server_dns }}
+       {% if strongswan_server_leftdns is defined %}leftdns={{ strongswan_server_leftdns }}{% endif %}
+       # ipsec server ip or dns 
+       # ( it must matches the strongswan.crt )
+       leftid={{ strongswan_server_leftid }}
        leftfirewall=yes
        # Client side 
-       # nat connection
-       rightsubnet=0.0.0.0/0
        # rsa
        rightauth=pubkey
        # Client <--- IKEv1/Xauth ---> Server <--- RADIUS/EAP ---> AAA
        rightauth2=xauth-eap
-       rightsendcert=never
-       rightdns=192.168.0.11
+       rightsourceip=10.0.0.0/24
        # allow vpn private tunnel 
        eap_identity=%any
        type=tunnel
