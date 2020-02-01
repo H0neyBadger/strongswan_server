@@ -53,7 +53,10 @@
       pushd {{ strongswan_server_git_directory | quote }}
       git pull
 
+      set +e
       make clean
+      set -e
+
       ./autogen.sh
       # https://wiki.strongswan.org/projects/strongswan/wiki/XAuthEAP
       ./configure \
@@ -162,13 +165,6 @@
     reload: yes
   become: true
  
-- name: Start / Enable freeradius service
-  service: 
-    name: freeradius
-    state: restarted
-    enabled: true
-  become: true
-
 - name: Start / Enable strongswan service
   service: 
     name: strongswan-starter
